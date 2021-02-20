@@ -1,0 +1,25 @@
+name: DockerHub
+on:
+  workflow_dispatch:
+  push:
+    branches: 
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Clone Repository
+      uses: actions/checkout@main
+
+    - name: Build and publish image
+      uses: ilteoood/docker_buildx@master
+      with:
+        publish: true
+        imageName: rikudoupatrickstar/jd-base
+        tag: v3
+        dockerFile: docker/Dockerfile
+        platform: linux/amd64,linux/arm64,linux/arm/v7
+        dockerUser: ${{ secrets.MY_ID }}
+        dockerPassword: ${{ secrets.MY_PASSWORD }}
