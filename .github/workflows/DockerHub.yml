@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: 
-      - master
+      - v3
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     - name: Clone Repository
       uses: actions/checkout@main
 
-    - name: Build and publish image
+    - name: Build & Publish Image
       uses: ilteoood/docker_buildx@master
       with:
         publish: true
