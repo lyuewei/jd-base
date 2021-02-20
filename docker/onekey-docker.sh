@@ -30,7 +30,10 @@ ScriptsDir=""
 
 HasImage=false
 NewImage=true
-DelContainer=false
+
+NeedDirConfig=""
+NeedDirLog=""
+NeedDirScripts=""
 
 log() {
     echo -e "\e[32m$1 \e[0m"
@@ -73,18 +76,6 @@ warn "\n注意如果你什么都不清楚，建议所有选项都直接回车，
 # 收集配置信息
 #
 
-# 配置文件目录
-echo -e "\e[33m请输入配置文件保存的绝对路径,直接回车为当前目录:\e[0m"
-read jd_dir
-if [ -z "$jd_dir" ]; then
-    JdDir=$ShellDir/jd-docker
-else
-    JdDir=$jd_dir
-fi
-ConfigDir=$JdDir/config
-LogDir=$JdDir/log
-ScriptsDir=$JdDir/scripts
-
 # 检测镜像是否存在
 if [ ! -z "$(docker images -q $DockerImage 2> /dev/null)" ]; then
     HasImage=true
@@ -106,7 +97,8 @@ Check_ContainerName() {
             log "选择了不删除先前的容器，需要重新输入容器名称"
             Input_ContainerName
         else
-            DelContainer=true
+            docker stop $ContainerName > /dev/null
+            docker rm $ContainerName > /dev/null
         fi
     fi
 }
@@ -147,17 +139,61 @@ Input_PanelPort() {
 }
 Input_PanelPort
 
+# 配置文件目录
+echo -e "\n\e[33m请输入配置文件保存的绝对路径,直接回车为 $ShellDir/jd-docker :\e[0m"
+read jd_dir
+if [ -z "$jd_dir" ]; then
+    JdDir=$ShellDir/jd-docker
+else
+    JdDir=$jd_dir
+fi
+ConfigDir=$JdDir/config
+LogDir=$JdDir/log
+ScriptsDir=$JdDir/scripts
+
+Need_ConfigDir() {
+    inp "\n是否需要映射配置文件目录：\n1) 是[默认]\n2) 否"
+    echo -n -e "\e[33m输入您的选择->\e[0m"
+    read need_config_dir
+    if [ "$need_config_dir" = "2" ]; then
+        NeedDirConfig=''
+    else
+        NeedDirConfig="-v $ConfigDir:/jd/config"
+        mkdir -p $ConfigDir
+    fi
+}
+Need_ConfigDir
+
+Need_LogDir() {
+    inp "\n是否需要映射日志文件目录：\n1) 是[默认]\n2) 否"
+    echo -n -e "\e[33m输入您的选择->\e[0m"
+    read need_log_dir
+    if [ "$need_log_dir" = "2" ]; then
+        NeedDirLog=''
+    else
+        NeedDirLog="-v $LogDir:/jd/log"
+        mkdir -p $LogDir
+    fi
+}
+Need_LogDir
+
+Need_ScriptsDir() {
+    inp "\n是否需要映射js脚本目录：\n1) 是\n2) 否[默认]"
+    echo -n -e "\e[33m输入您的选择->\e[0m"
+    read need_scripts_dir
+    if [ "$need_scripts_dir" = "1" ]; then
+        NeedDirScripts="-v $ScriptsDir:/jd/scripts"
+        mkdir -p $ScriptsDir
+    fi
+}
+Need_ScriptsDir
+
 #
 # 配置信息收集完成，开始安装
 #
 
-log "\n1.创建文件目录"
-mkdir -p $ConfigDir
-mkdir -p $LogDir
-mkdir -p $ScriptsDir
-
 if [ $NewImage = true ]; then
-    log "\n2.1.正在创建新镜像..."
+    log "\n正在创建新镜像..."
     rm -fr $WorkDir
     mkdir -p $WorkDir
     if [ $HasImage = true ]; then
@@ -168,25 +204,20 @@ if [ $NewImage = true ]; then
     rm -fr $WorkDir
 fi
 
-if [ $DelContainer = true ]; then
-    log "\n2.2.删除先前的容器"
-    docker stop $ContainerName > /dev/null
-    docker rm $ContainerName > /dev/null
-fi
-
-log "\n3.创建容器并运行"
+log "\n创建容器并运行"
 docker run -dit \
-    -v $ConfigDir:/jd/config \
-    -v $LogDir:/jd/log \
-    -v $ScriptsDir:/jd/scripts \
+    $NeedDirConfig \
+    $NeedDirLog \
+    $NeedDirScripts \
     -p $PanelPort:5678 \
     --name $ContainerName \
     --hostname jd \
     --restart always \
     $DockerImage
 
-log "\n4.下面列出所有容器"
+log "\n下面列出所有容器"
 docker ps
 
-log "\n5.安装已经完成。\n请访问 http://<ip>:5678 进行配置\n初始用户名：admin，初始密码：password"
+log "\n安装已经完成。\n请访问 http://<ip>:5678 进行配置\n初始用户名：admin，初始密码：password"
 rm -f $ShellDir/$ShellName
+
